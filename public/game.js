@@ -65,8 +65,7 @@ async function join(create) {
   busy(true); $('#join-err').textContent = create ? 'Creating room…' : 'Connecting…';
   try {
     if (create) {
-      code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
-      await net.host(code);
+      code = await net.host();
     } else {
       if (!code) throw 'Enter a room code';
       await net.connect(code);
@@ -92,7 +91,7 @@ socket.on('config', c => { CFG = c.CFG; SKILLS = c.SKILLS; });
 socket.on('hostLost', () => {
   show('screen-join');
   $('#code').value = roomCode || '';
-  $('#join-err').textContent = 'Lost connection to the host. Tap Join to rejoin (same name).';
+  $('#join-err').textContent = 'Lost connection. Tap Join to rejoin (same name).';
 });
 
 socket.on('lobby', l => {

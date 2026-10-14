@@ -4,17 +4,18 @@ A League of Legends–themed spin-off of the duck race, used to decide fantasy b
 Up to 12 players pick a champion, then race from the **blue fountain** down mid lane to the **red fountain**
 while dodging skill shots fired from the red nexus. Finish order = draft order.
 
-## Hosting (GitHub Pages)
-This is a static site, so no server is needed. The **room creator's browser runs the game** and the other
-phones connect to it peer-to-peer (WebRTC via [PeerJS](https://peerjs.com)'s free public broker).
+## Run locally
+```bash
+npm install
+npm start          # http://localhost:3000
+```
 
-1. Merge to `main`.
-2. Repo **Settings → Pages → Source: GitHub Actions**. The workflow in `.github/workflows/pages.yml` publishes `public/`.
-3. Open `https://<user>.github.io/<repo>/`.
+## Hosting (Render, free)
+1. Merge this branch into `main`.
+2. On [render.com](https://render.com): **New → Blueprint**, pick this repo. `render.yaml` sets up a free Node web service.
+3. Share the `https://rift-race-xxxx.onrender.com` URL.
 
-The host must keep the game open for the whole race. If the host's phone locks, the room ends.
-
-Local testing: `cd public && python3 -m http.server 8000`.
+The free plan sleeps after 15 minutes idle; the first visit takes ~30–60s to wake it. Open it a minute before the draft.
 
 ## How to play
 - One person taps **Create room** and shares the link (`/?room=CODE`); everyone else joins.
@@ -28,7 +29,7 @@ Local testing: `cd public && python3 -m http.server 8000`.
 | Tristana R (Buster Shot) | Knockback toward your base |
 | Karma Q (Inner Flame) | 55% slow for 2s |
 
-The host's browser is authoritative: it moves players, handles champion collisions (champions block each other), spawns skill shots, detects hits and detects who crosses the finish line.
+The server is authoritative: it moves players, handles champion collisions (champions block each other), spawns skill shots, detects hits and detects who crosses the finish line.
 The lane runs diagonally from the blue base (bottom-left) to the red base (top-right); a clean run takes about 30 seconds.
 The race ends when everyone finishes (or after 3 minutes; unfinished players are ranked by distance).
 Results are revealed last → first, with 1st/2nd/3rd in gold/silver/bronze.

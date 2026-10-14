@@ -1,4 +1,4 @@
-/* Authoritative game engine. Runs in the HOST's browser (no backend needed, so it works on GitHub Pages).
+/* Authoritative game engine, run by server.js (one instance per room).
    send(connId, type, data) talks to one player, broadcast(type, data) to everyone. */
 (function (root) {
   const CFG = {
@@ -80,7 +80,7 @@
       p.connected = true;
       p.connId = connId;
       this.conns.set(connId, p.id);
-      if (!this.hostId) this.hostId = p.id;
+      if (!this.players.get(this.hostId)?.connected) this.hostId = p.id;
       ack({ ok: true, id: p.id, code: this.code, results: this.state === 'results' ? this.lastResults : null });
       this.lobby();
       if (this.state === 'race' || this.state === 'countdown')
@@ -93,7 +93,8 @@
       if (!p || p.connId !== connId) return;
       p.connected = false;
       if (p.input) p.input = { dx: 0, dy: 0 };
-      if (this.state === 'lobby' && p.id !== this.hostId) this.players.delete(p.id);
+      if (this.state === 'lobby') this.players.delete(p.id);
+      if (this.hostId === p.id) this.hostId = [...this.players.values()].find(q => q.connected)?.id || null;
       this.lobby();
     }
 
