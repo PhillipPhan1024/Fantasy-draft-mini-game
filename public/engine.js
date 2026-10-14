@@ -9,6 +9,8 @@
     MAX_PLAYERS: 12,
     RACE_TIME: 180,      // seconds before the race is force-ended
     COUNTDOWN: 3,
+    SHOT_MIN_GAP: 1.2,   // seconds between skill-shot volleys (random in this range)
+    SHOT_MAX_GAP: 2.4,
   };
   const SKILLS = {
     ashe:  { speed: 1100, r: 34, effect: 'stun', dur: 2 },
@@ -116,7 +118,7 @@
 
     spawnShots() {
       const kinds = Object.keys(SKILLS);
-      const n = 1 + Math.floor(Math.random() * 3);
+      const n = Math.random() < 0.25 ? 2 : 1; // usually one shot, sometimes two
       for (let i = 0; i < n; i++) {
         this.shots.push({
           id: this.shotId++, kind: kinds[Math.floor(Math.random() * kinds.length)],
@@ -125,7 +127,7 @@
           hit: new Set(),
         });
       }
-      this.nextShot = 0.35 + Math.random() * 1.0;
+      this.nextShot = CFG.SHOT_MIN_GAP + Math.random() * (CFG.SHOT_MAX_GAP - CFG.SHOT_MIN_GAP);
     }
 
     tick() {
