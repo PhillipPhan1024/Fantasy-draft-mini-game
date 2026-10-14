@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a1428">
+<title>Rift Race</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="rotate">↻ Rotate your phone to landscape</div>
+
+<section id="screen-join" class="screen active">
+  <h1>RIFT <span>RACE</span></h1>
+  <p class="sub">Blue fountain → Red fountain. Dodge the skill shots. Finish order = draft order.</p>
+  <input id="name" maxlength="16" placeholder="Your name" autocomplete="off">
+  <div class="row">
+    <button id="btn-create">Create room</button>
+    <input id="code" maxlength="4" placeholder="CODE" autocomplete="off">
+    <button id="btn-join">Join</button>
+  </div>
+  <p id="join-err" class="err"></p>
+</section>
+
+<section id="screen-lobby" class="screen">
+  <div class="lobby-side">
+    <h2>Room <span id="room-code"></span></h2>
+    <ul id="player-list"></ul>
+    <button id="btn-start" class="hidden">Start race</button>
+    <p id="lobby-hint" class="sub"></p>
+  </div>
+  <div class="lobby-main">
+    <input id="champ-search" placeholder="Search champion…" autocomplete="off">
+    <div id="champ-grid"></div>
+  </div>
+</section>
+
+<section id="screen-game" class="screen">
+  <canvas id="canvas"></canvas>
+  <div id="hud">
+    <div id="progress"><div id="progress-track"></div></div>
+    <div id="timer">0:00</div>
+  </div>
+  <div id="banner"></div>
+  <div id="feed"></div>
+  <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
+</section>
+
+<section id="screen-results" class="screen">
+  <h1>DRAFT <span>ORDER</span></h1>
+  <table id="results"><tbody></tbody></table>
+  <button id="btn-again" class="hidden">Back to lobby</button>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
