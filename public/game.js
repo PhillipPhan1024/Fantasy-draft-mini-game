@@ -326,6 +326,7 @@ function drawShot(s) {
 function drawPlayer(p, v, now) {
   const R = CFG.PLAYER_R, me = p.id === myId;
   ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(-DIAG);
+  if (p.gh) ctx.globalAlpha = 0.55;
   if (p.slow) { ctx.strokeStyle = '#e05cff'; ctx.lineWidth = 6; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.arc(0, 0, R + 10, now / 300, now / 300 + Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0, R * .9, R, R * .35, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.clip();

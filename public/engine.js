@@ -115,7 +115,7 @@
       const gap = (CFG.LANE_HALF * 2 - 80) / Math.max(1, list.length - 1);
       list.forEach((p, i) => Object.assign(p, {
         x: 60 + (i % 2) * 90, y: list.length === 1 ? 0 : -CFG.LANE_HALF + 40 + gap * i,
-        input: { dx: 0, dy: 0 }, shield: 0, shieldCd: 0, stun: 0, slow: 0, kb: 0, finished: false, finishTime: null,
+        input: { dx: 0, dy: 0 }, shield: 0, shieldCd: 0, stun: 0, slow: 0, kb: 0, ghost: false, finished: false, finishTime: null,
       }));
       this.startAt = Date.now() + CFG.COUNTDOWN * 1000;
       this.lobby();
@@ -163,6 +163,7 @@
       for (let iter = 0; iter < 3; iter++) {
         for (let i = 0; i < racing.length; i++) for (let j = i + 1; j < racing.length; j++) {
           const a = racing[i], b = racing[j];
+          if (a.ghost || b.ghost) continue;
           let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
           if (d >= R * 2) continue;
           if (d < 0.01) { dx = 0; dy = 1; d = 1; }
@@ -171,6 +172,10 @@
           b.x += dx / d * push; b.y += dy / d * push;
         }
       }
+      // a knocked-back champion passes through others (nobody behind gets punished for it)
+      // and stays ghosted until it's no longer overlapping anyone
+      for (const p of racing) if (p.ghost && p.kb <= 0 &&
+        !racing.some(q => q !== p && Math.hypot(q.x - p.x, q.y - p.y) < R * 2)) p.ghost = false;
       for (const p of racing) {
         p.x = Math.max(30, p.x);
         p.y = Math.max(-CFG.LANE_HALF + R, Math.min(CFG.LANE_HALF - R, p.y));
@@ -198,7 +203,7 @@
           }
           if (def.effect === 'stun') p.stun = Math.max(p.stun, def.dur);
           else if (def.effect === 'slow') p.slow = Math.max(p.slow, def.dur);
-          else p.kb = def.dist;
+          else { p.kb = def.dist; p.ghost = true; }
           this.broadcast('hit', { id: p.id, kind: s.kind });
         }
       }
@@ -209,7 +214,7 @@
         t: elapsed,
         players: [...this.players.values()].map(p => ({
           id: p.id, x: Math.round(p.x), y: Math.round(p.y),
-          stun: p.stun > 0, slow: p.slow > 0, sh: p.shield > 0, cd: Math.ceil(p.shieldCd * 10) / 10, kb: p.kb > 0, finished: p.finished,
+          stun: p.stun > 0, slow: p.slow > 0, sh: p.shield > 0, cd: Math.ceil(p.shieldCd * 10) / 10, kb: p.kb > 0, gh: !!p.ghost, finished: p.finished,
         })),
         shots: this.shots.map(s => ({ id: s.id, k: s.kind, x: Math.round(s.x), y: Math.round(s.y) })),
       });
