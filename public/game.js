@@ -208,7 +208,7 @@ function updateShieldBtn(p) {
   shieldBtn.style.backgroundImage = `url(${spellUrl('janna')})`;
   shieldBtn.classList.toggle('active', !!p.sh);
   shieldBtn.classList.toggle('cooling', p.cd > 0 || !!p.finished);
-  $('#shield-cd').textContent = p.cd > 0 ? Math.ceil(p.cd) : p.sh ? '' : '🛡️';
+  $('#shield-cd').textContent = p.cd > 0 ? Math.ceil(p.cd) : '';
 }
 // keyboard fallback for desktop testing
 const keys = {};
@@ -277,7 +277,8 @@ function base_(x, dark, light, dir) {
   ctx.fillStyle = light; ctx.shadowColor = light; ctx.shadowBlur = 40;
   ctx.fillRect(-60, -60, 120, 120); ctx.restore();
   // towers: inhib, inner, outer
-  for (const off of [900, 1900, 3000]) tower(x + dir * off, -160, light), tower(x + dir * off, 160, light);
+  const H = CFG.LANE_HALF;
+  for (const off of [900, 1900, 3000]) tower(x + dir * off, -H * 0.55, light), tower(x + dir * off, H * 0.55, light);
 }
 function riverAt(m) {
   // straight where it crosses mid lane (|y| < 800) so both banks line up, winding toward baron / dragon beyond
@@ -325,6 +326,7 @@ function drawShot(s) {
 function drawPlayer(p, v, now) {
   const R = CFG.PLAYER_R, me = p.id === myId;
   ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(-DIAG);
+  if (p.gh) ctx.globalAlpha = 0.55;
   if (p.slow) { ctx.strokeStyle = '#e05cff'; ctx.lineWidth = 6; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.arc(0, 0, R + 10, now / 300, now / 300 + Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0, R * .9, R, R * .35, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.clip();
