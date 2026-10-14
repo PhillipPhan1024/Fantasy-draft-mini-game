@@ -3,8 +3,8 @@
 (function (root) {
   const CFG = {
     LANE_LEN: 8400,      // blue fountain x=0 -> red fountain; ~30s at full speed
-    LANE_HALF: 300,      // lane spans y in [-LANE_HALF, LANE_HALF]
-    PLAYER_R: 42,
+    LANE_HALF: 400,      // lane spans y in [-LANE_HALF, LANE_HALF]
+    PLAYER_R: 35,
     SPEED: 280,          // units / second
     MAX_PLAYERS: 12,
     RACE_TIME: 180,      // seconds before the race is force-ended

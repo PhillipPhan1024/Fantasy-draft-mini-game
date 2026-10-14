@@ -277,7 +277,8 @@ function base_(x, dark, light, dir) {
   ctx.fillStyle = light; ctx.shadowColor = light; ctx.shadowBlur = 40;
   ctx.fillRect(-60, -60, 120, 120); ctx.restore();
   // towers: inhib, inner, outer
-  for (const off of [900, 1900, 3000]) tower(x + dir * off, -160, light), tower(x + dir * off, 160, light);
+  const H = CFG.LANE_HALF;
+  for (const off of [900, 1900, 3000]) tower(x + dir * off, -H * 0.55, light), tower(x + dir * off, H * 0.55, light);
 }
 function riverAt(m) {
   // straight where it crosses mid lane (|y| < 800) so both banks line up, winding toward baron / dragon beyond
