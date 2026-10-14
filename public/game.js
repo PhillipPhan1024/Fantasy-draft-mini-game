@@ -1,5 +1,6 @@
 /* Rift Race client */
-const socket = io();
+const socket = net;
+const DIAG = -Math.PI / 4;           // world +x (toward red) points up-right on screen
 const $ = s => document.querySelector(s);
 let CFG, SKILLS;
 let myId = null, lobby = null, roomCode = null;
@@ -54,14 +55,28 @@ $('#name').value = localStorage.getItem('rr-name') || '';
 const urlCode = new URLSearchParams(location.search).get('room');
 if (urlCode) $('#code').value = urlCode;
 
-function join(create) {
+const busy = on => document.querySelectorAll('#screen-join button').forEach(b => (b.disabled = on));
+async function join(create) {
   const name = $('#name').value.trim();
+  if (!name) return ($('#join-err').textContent = 'Enter a name');
   localStorage.setItem('rr-name', name);
-  socket.emit('join', { name, code: $('#code').value, create }, res => {
+  goFullscreen();
+  let code = $('#code').value.trim().toUpperCase();
+  busy(true); $('#join-err').textContent = create ? 'Creating room…' : 'Connecting…';
+  try {
+    if (create) {
+      code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
+      await net.host(code);
+    } else {
+      if (!code) throw 'Enter a room code';
+      await net.connect(code);
+    }
+  } catch (e) { busy(false); return ($('#join-err').textContent = String(e)); }
+  busy(false); $('#join-err').textContent = '';
+  socket.emit('join', { name }, res => {
     if (res.error) return ($('#join-err').textContent = res.error);
     myId = res.id; roomCode = res.code;
     history.replaceState(null, '', `?room=${res.code}`);
-    goFullscreen();
     if (res.results) showResults(res.results);
   });
 }
@@ -74,12 +89,11 @@ function goFullscreen() {
 }
 
 socket.on('config', c => { CFG = c.CFG; SKILLS = c.SKILLS; });
-socket.on('connect', () => { if (roomCode && myId) rejoin(); });
-function rejoin() {
-  socket.emit('join', { name: $('#name').value.trim(), code: roomCode }, res => {
-    if (res.ok) myId = res.id;
-  });
-}
+socket.on('hostLost', () => {
+  show('screen-join');
+  $('#code').value = roomCode || '';
+  $('#join-err').textContent = 'Lost connection to the host. Tap Join to rejoin (same name).';
+});
 
 socket.on('lobby', l => {
   lobby = l;
@@ -93,7 +107,7 @@ socket.on('lobby', l => {
   $('#btn-again').classList.toggle('hidden', !isHost);
   $('#lobby-hint').textContent = `${l.players.length}/12 players · ` +
     (isHost ? 'Start when everyone has picked.' : 'Waiting for host…') +
-    ` Share: ${location.origin}/?room=${l.code}`;
+    ` Share: ${location.origin}${location.pathname}?room=${l.code}`;
   renderChampGrid();
   if (l.state === 'lobby') show('screen-lobby');
   else if ((l.state === 'race' || l.state === 'countdown') && !$('#screen-game').classList.contains('active')) startGameView();
@@ -193,6 +207,9 @@ setInterval(() => {
     dx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
     dy = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
   }
+  // joystick is in screen space; the lane is drawn rotated, so rotate input back into world space
+  const c = Math.cos(-DIAG), s = Math.sin(-DIAG);
+  [dx, dy] = [dx * c - dy * s, dx * s + dy * c];
   const msg = `${dx.toFixed(2)},${dy.toFixed(2)}`;
   if (msg !== lastSent) { lastSent = msg; socket.emit('input', { dx, dy }); }
 }, 50);
@@ -208,9 +225,9 @@ addEventListener('resize', resize);
 
 function drawMap(L, H) {
   // jungle
-  ctx.fillStyle = '#16301c'; ctx.fillRect(-1500, -2500, L + 3000, 5000);
+  ctx.fillStyle = '#16301c'; ctx.fillRect(-3000, -4000, L + 6000, 8000);
   ctx.fillStyle = '#1d3b22';
-  for (let x = -1400; x < L + 1500; x += 400) for (let y = -2400; y < 2500; y += 400)
+  for (let x = -2800; x < L + 3000; x += 400) for (let y = -3600; y < 3600; y += 400)
     if (((x + y) / 400) % 2 === 0) ctx.fillRect(x, y, 200, 200);
   // walls along the lane
   ctx.fillStyle = '#3a3a33';
@@ -222,14 +239,15 @@ function drawMap(L, H) {
   // river crossing mid
   const m = L / 2;
   ctx.fillStyle = 'rgba(40,120,170,.75)';
-  ctx.beginPath(); ctx.moveTo(m - 450, -2500); ctx.lineTo(m - 50, -2500); ctx.lineTo(m + 450, 2500); ctx.lineTo(m + 50, 2500); ctx.fill();
+  // the river runs perpendicular to mid lane, like on Summoner's Rift
+  ctx.beginPath(); ctx.moveTo(m - 220, -4000); ctx.lineTo(m + 220, -4000); ctx.lineTo(m + 220, 4000); ctx.lineTo(m - 220, 4000); ctx.fill();
   // bases
   base_(0, '#0a5c9e', '#3cc0ff', 1); base_(L, '#9e0a1e', '#ff4b5c', -1);
   // finish line
   ctx.fillStyle = '#fff';
   for (let y = -H; y < H; y += 40) { ctx.fillRect(L + ((y / 40) % 2 ? 0 : 20), y, 20, 20); ctx.fillRect(L + ((y / 40) % 2 ? 20 : 0), y + 20, 20, 20); }
   // dragon/baron pits for flavor
-  pit(m + 900, 1200, '#5a2e7a'); pit(m - 900, -1200, '#7a4a1e');
+  pit(m, -1300, '#5a2e7a'); pit(m, 1300, '#7a4a1e'); // baron / dragon
 }
 function base_(x, dark, light, dir) {
   ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(x, 0, 650, 0, Math.PI * 2); ctx.fill();
@@ -243,7 +261,7 @@ function base_(x, dark, light, dir) {
   ctx.fillStyle = light; ctx.shadowColor = light; ctx.shadowBlur = 40;
   ctx.fillRect(-60, -60, 120, 120); ctx.restore();
   // towers: inhib, inner, outer
-  for (const off of [850, 1500, 2300]) tower(x + dir * off, -160, light), tower(x + dir * off, 160, light);
+  for (const off of [900, 1900, 3000]) tower(x + dir * off, -160, light), tower(x + dir * off, 160, light);
 }
 function tower(x, y, c) {
   ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(x, y, 45, 0, Math.PI * 2); ctx.fill();
@@ -274,7 +292,7 @@ function drawShot(s) {
 
 function drawPlayer(p, v, now) {
   const R = CFG.PLAYER_R, me = p.id === myId;
-  ctx.save(); ctx.translate(v.x, v.y);
+  ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(-DIAG);
   if (p.slow) { ctx.strokeStyle = '#e05cff'; ctx.lineWidth = 6; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.arc(0, 0, R + 10, now / 300, now / 300 + Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0, R * .9, R, R * .35, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.clip();
@@ -314,10 +332,10 @@ function frame() {
   }
   const me = view[myId] || { x: 0, y: 0 };
   // camera locked on me; scale so the lane (+ some margin) fills screen height
-  const scale = Hc / (CFG.LANE_HALF * 2 + 200);
+  const scale = Math.min(W, Hc * 1.6) / (CFG.LANE_HALF * 2 + 700);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#16301c'; ctx.fillRect(0, 0, W, Hc);
-  ctx.setTransform(scale, 0, 0, scale, W / 2 - me.x * scale, Hc / 2 - me.y * scale);
+  ctx.translate(W / 2, Hc / 2); ctx.scale(scale, scale); ctx.rotate(DIAG); ctx.translate(-me.x, -me.y);
   drawMap(CFG.LANE_LEN, CFG.LANE_HALF);
   if (state) for (const s of state.shots) drawShot(s);
   // draw others first, me on top
