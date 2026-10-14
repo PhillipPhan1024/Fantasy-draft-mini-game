@@ -256,7 +256,7 @@ function drawMap(L, H) {
   for (let x = -1400; x < L + 1500; x += 260) { ctx.beginPath(); ctx.moveTo(x, -H + 40 + (x % 520 ? 0 : 200)); ctx.lineTo(x + 90, -H + 70 + (x % 520 ? 0 : 200)); ctx.stroke(); }
   const m = L / 2;
   // shallow river bank tint where mid lane crosses the river
-  ctx.fillStyle = 'rgba(70,120,110,.35)'; ctx.fillRect(m - 260, -H, 520, H * 2);
+  ctx.fillStyle = 'rgba(70,120,110,.35)'; ctx.fillRect(m - 239, -H, 478, H * 2); // matches river banks (230 + half stroke)
   // bases
   base_(0, '#0a5c9e', '#3cc0ff', 1); base_(L, '#9e0a1e', '#ff4b5c', -1);
   // finish line
@@ -280,15 +280,19 @@ function base_(x, dark, light, dir) {
   for (const off of [900, 1900, 3000]) tower(x + dir * off, -160, light), tower(x + dir * off, 160, light);
 }
 function riverAt(m) {
+  // straight where it crosses mid lane (|y| < 800) so both banks line up, winding toward baron / dragon beyond
+  const W = 230, S = 800;
   ctx.fillStyle = '#245f86';
   ctx.strokeStyle = '#3f8fb5'; ctx.lineWidth = 18;
   ctx.beginPath();
-  ctx.moveTo(m - 260, -3800);
-  ctx.bezierCurveTo(m - 700, -2400, m + 300, -1400, m - 220, 0);
-  ctx.bezierCurveTo(m - 700, 1400, m + 300, 2400, m - 160, 3800);
-  ctx.lineTo(m + 360, 3800);
-  ctx.bezierCurveTo(m + 800, 2400, m - 200, 1400, m + 220, 0);
-  ctx.bezierCurveTo(m + 700, -1400, m - 300, -2400, m + 260, -3800);
+  ctx.moveTo(m - W - 300, -3800);
+  ctx.bezierCurveTo(m - W - 600, -2400, m - W, -1600, m - W, -S);
+  ctx.lineTo(m - W, S);
+  ctx.bezierCurveTo(m - W, 1600, m - W + 600, 2400, m - W + 300, 3800);
+  ctx.lineTo(m + W + 300, 3800);
+  ctx.bezierCurveTo(m + W + 600, 2400, m + W, 1600, m + W, S);
+  ctx.lineTo(m + W, -S);
+  ctx.bezierCurveTo(m + W, -1600, m + W - 600, -2400, m + W - 300, -3800);
   ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 function tower(x, y, c) {
