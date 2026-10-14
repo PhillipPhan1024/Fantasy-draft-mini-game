@@ -208,7 +208,7 @@ function updateShieldBtn(p) {
   shieldBtn.style.backgroundImage = `url(${spellUrl('janna')})`;
   shieldBtn.classList.toggle('active', !!p.sh);
   shieldBtn.classList.toggle('cooling', p.cd > 0 || !!p.finished);
-  $('#shield-cd').textContent = p.cd > 0 ? Math.ceil(p.cd) : p.sh ? '' : '🛡️';
+  $('#shield-cd').textContent = p.cd > 0 ? Math.ceil(p.cd) : '';
 }
 // keyboard fallback for desktop testing
 const keys = {};
