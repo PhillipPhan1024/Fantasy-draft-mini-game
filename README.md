@@ -29,6 +29,8 @@ The free plan sleeps after 15 minutes idle; the first visit takes ~30–60s to w
 | Tristana R (Buster Shot) | Knockback toward your base |
 | Karma Q (Inner Flame) | 55% slow for 2s |
 
+**Janna shield** (button on the right, Space on desktop): blocks the next skill shot within 2s. 12s cooldown starts once the shield is gone. Can't be cast while stunned or knocked back.
+
 The server is authoritative: it moves players, handles champion collisions (champions block each other), spawns skill shots, detects hits and detects who crosses the finish line.
 The lane runs diagonally from the blue base (bottom-left) to the red base (top-right); a clean run takes about 30 seconds.
 The race ends when everyone finishes (or after 3 minutes; unfinished players are ranked by distance).

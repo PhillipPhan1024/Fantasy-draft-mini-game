@@ -32,7 +32,8 @@ io.on('connection', socket => {
     const code = makeCode();
     rooms.set(code, new RoomEngine(code,
       (connId, t, d) => io.to(connId).emit('msg', { t, d }),
-      (t, d) => io.to(code).emit('msg', { t, d })));
+      // position snapshots are droppable: never queue stale ones behind a slow connection
+      (t, d) => (t === 'state' ? io.to(code).volatile : io.to(code)).emit('msg', { t, d })));
     enter(code, ack);
   });
   socket.on('enter', (code, ack) => enter(String(code || '').toUpperCase(), ack));
