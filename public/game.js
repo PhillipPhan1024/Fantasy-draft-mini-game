@@ -7,7 +7,7 @@ let myId = null, lobby = null, roomCode = null;
 let ddVer = '14.24.1';
 let champs = [];                      // [{id,name}]
 const imgCache = {};
-const SPELL_ICON = { ashe: 'EnchantedCrystalArrow', trist: 'TristanaR', karma: 'KarmaQ' };
+const SPELL_ICON = { ashe: 'EnchantedCrystalArrow', trist: 'TristanaR', karma: 'KarmaQ', janna: 'EyeOfTheStorm' };
 const SKILL_NAME = { ashe: 'Ashe R', trist: 'Tristana R', karma: 'Karma Q' };
 const SKILL_COLOR = { ashe: '#9fe8ff', trist: '#ff8a2a', karma: '#e05cff' };
 
@@ -105,12 +105,17 @@ socket.on('lobby', l => {
   $('#btn-start').classList.toggle('hidden', !isHost);
   $('#btn-again').classList.toggle('hidden', !isHost);
   $('#lobby-hint').textContent = `${l.players.length}/12 players · ` +
-    (isHost ? 'Start when everyone has picked.' : 'Waiting for host…') +
-    ` Share: ${location.origin}${location.pathname}?room=${l.code}`;
+    (isHost ? 'Start when everyone has picked.' : 'Waiting for host…');
+  $('#share-link').value = `${location.origin}${location.pathname}?room=${l.code}`;
   renderChampGrid();
   if (l.state === 'lobby') show('screen-lobby');
   else if ((l.state === 'race' || l.state === 'countdown') && !$('#screen-game').classList.contains('active')) startGameView();
 });
+$('#share-link').onclick = e => {
+  const url = e.target.value;
+  if (navigator.share) navigator.share({ title: 'Rift Race', text: `Join my Rift Race room ${roomCode}`, url }).catch(() => {});
+  else { e.target.select(); navigator.clipboard?.writeText(url); }
+};
 $('#btn-start').onclick = () => socket.emit('start');
 $('#btn-again').onclick = () => socket.emit('backToLobby');
 
@@ -140,6 +145,7 @@ socket.on('hit', ({ id, kind }) => {
   if (id === myId && navigator.vibrate) navigator.vibrate(kind === 'trist' ? 200 : 80);
   feed(`${pname(id)} hit by ${SKILL_NAME[kind]}`, SKILL_COLOR[kind]);
 });
+socket.on('blocked', ({ id, kind }) => feed(`🛡️ ${pname(id)} blocked ${SKILL_NAME[kind]}`, '#9fe8ff'));
 socket.on('finished', ({ id, place, time }) => {
   feed(`🏁 ${pname(id)} finished #${place} (${time.toFixed(1)}s)`, '#c8aa6e');
   if (id === myId) banner(`#${place}!`, 3000);
@@ -193,6 +199,17 @@ function moveJoy(e) {
   knob.style.transform = `translate(${dx}px,${dy}px)`;
   joy.dx = dx / JOY_R; joy.dy = dy / JOY_R;
 }
+// Janna shield button (Space on desktop)
+const shieldBtn = $('#btn-shield');
+shieldBtn.addEventListener('pointerdown', e => { e.preventDefault(); socket.emit('shield'); });
+addEventListener('keydown', e => { if (e.code === 'Space') socket.emit('shield'); });
+function updateShieldBtn(p) {
+  if (!p) return;
+  shieldBtn.style.backgroundImage = `url(${spellUrl('janna')})`;
+  shieldBtn.classList.toggle('active', !!p.sh);
+  shieldBtn.classList.toggle('cooling', p.cd > 0 || !!p.finished);
+  $('#shield-cd').textContent = p.cd > 0 ? Math.ceil(p.cd) : p.sh ? '' : '🛡️';
+}
 // keyboard fallback for desktop testing
 const keys = {};
 addEventListener('keydown', e => (keys[e.key.toLowerCase()] = true));
@@ -228,6 +245,8 @@ function drawMap(L, H) {
   ctx.fillStyle = '#1d3b22';
   for (let x = -2800; x < L + 3000; x += 400) for (let y = -3600; y < 3600; y += 400)
     if (((x + y) / 400) % 2 === 0) ctx.fillRect(x, y, 200, 200);
+  // river: winds from baron pit (top) to dragon pit (bottom) and passes UNDER mid lane
+  riverAt(L / 2);
   // walls along the lane
   ctx.fillStyle = '#3a3a33';
   ctx.fillRect(-1500, -H - 70, L + 3000, 70); ctx.fillRect(-1500, H, L + 3000, 70);
@@ -235,11 +254,9 @@ function drawMap(L, H) {
   ctx.fillStyle = '#7a6844'; ctx.fillRect(-1500, -H, L + 3000, H * 2);
   ctx.strokeStyle = '#8f7b52'; ctx.lineWidth = 6;
   for (let x = -1400; x < L + 1500; x += 260) { ctx.beginPath(); ctx.moveTo(x, -H + 40 + (x % 520 ? 0 : 200)); ctx.lineTo(x + 90, -H + 70 + (x % 520 ? 0 : 200)); ctx.stroke(); }
-  // river crossing mid
   const m = L / 2;
-  ctx.fillStyle = 'rgba(40,120,170,.75)';
-  // the river runs perpendicular to mid lane, like on Summoner's Rift
-  ctx.beginPath(); ctx.moveTo(m - 220, -4000); ctx.lineTo(m + 220, -4000); ctx.lineTo(m + 220, 4000); ctx.lineTo(m - 220, 4000); ctx.fill();
+  // shallow river bank tint where mid lane crosses the river
+  ctx.fillStyle = 'rgba(70,120,110,.35)'; ctx.fillRect(m - 260, -H, 520, H * 2);
   // bases
   base_(0, '#0a5c9e', '#3cc0ff', 1); base_(L, '#9e0a1e', '#ff4b5c', -1);
   // finish line
@@ -261,6 +278,18 @@ function base_(x, dark, light, dir) {
   ctx.fillRect(-60, -60, 120, 120); ctx.restore();
   // towers: inhib, inner, outer
   for (const off of [900, 1900, 3000]) tower(x + dir * off, -160, light), tower(x + dir * off, 160, light);
+}
+function riverAt(m) {
+  ctx.fillStyle = '#245f86';
+  ctx.strokeStyle = '#3f8fb5'; ctx.lineWidth = 18;
+  ctx.beginPath();
+  ctx.moveTo(m - 260, -3800);
+  ctx.bezierCurveTo(m - 700, -2400, m + 300, -1400, m - 220, 0);
+  ctx.bezierCurveTo(m - 700, 1400, m + 300, 2400, m - 160, 3800);
+  ctx.lineTo(m + 360, 3800);
+  ctx.bezierCurveTo(m + 800, 2400, m - 200, 1400, m + 220, 0);
+  ctx.bezierCurveTo(m + 700, -1400, m - 300, -2400, m + 260, -3800);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 function tower(x, y, c) {
   ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(x, y, 45, 0, Math.PI * 2); ctx.fill();
@@ -302,6 +331,10 @@ function drawPlayer(p, v, now) {
   ctx.restore();
   ctx.lineWidth = me ? 5 : 3; ctx.strokeStyle = me ? '#0ac8b9' : '#c8aa6e';
   ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+  if (p.sh) {
+    ctx.fillStyle = 'rgba(200,240,255,.25)'; ctx.strokeStyle = 'rgba(220,250,255,.9)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, 0, R + 14 + Math.sin(now / 120) * 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
   if (p.stun) {
     ctx.fillStyle = '#ffe14d'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
     for (let i = 0; i < 3; i++) { const a = now / 200 + i * 2.09; ctx.fillText('★', Math.cos(a) * R, -R - 14 + Math.sin(a) * 8); }
@@ -340,6 +373,7 @@ function frame() {
   // draw others first, me on top
   for (const p of players) if (p.id !== myId) drawPlayer(p, view[p.id], now);
   const mp = players.find(p => p.id === myId); if (mp) drawPlayer(mp, me, now);
+  updateShieldBtn(mp);
 
   // HUD
   for (const p of players) {

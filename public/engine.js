@@ -11,6 +11,8 @@
     COUNTDOWN: 3,
     SHOT_MIN_GAP: 1.2,   // seconds between skill-shot volleys (random in this range)
     SHOT_MAX_GAP: 2.4,
+    SHIELD_TIME: 2,      // Janna shield duration (s)
+    SHIELD_CD: 12,       // cooldown starts after the shield is gone (s)
   };
   const SKILLS = {
     ashe:  { speed: 1100, r: 34, effect: 'stun', dur: 2 },
@@ -57,6 +59,12 @@
         case 'backToLobby':
           if (this.hostId !== pid || this.state !== 'results') return;
           this.state = 'lobby'; return this.lobby();
+        case 'shield':
+          if (this.state === 'race' && p && !p.finished && p.shield <= 0 && p.shieldCd <= 0 && p.stun <= 0 && p.kb <= 0) {
+            p.shield = CFG.SHIELD_TIME;
+            this.broadcast('shield', { id: p.id });
+          }
+          return;
         case 'input': {
           if (!p || !p.input) return;
           let dx = Number(data?.dx) || 0, dy = Number(data?.dy) || 0;
@@ -102,12 +110,12 @@
 
     startRace() {
       this.state = 'countdown';
-      this.shots = []; this.finishOrder = []; this.nextShot = 1.5; this.shotId = 0;
+      this.shots = []; this.finishOrder = []; this.frame = 0; this.nextShot = 1.5; this.shotId = 0;
       const list = [...this.players.values()];
       const gap = (CFG.LANE_HALF * 2 - 80) / Math.max(1, list.length - 1);
       list.forEach((p, i) => Object.assign(p, {
         x: 60 + (i % 2) * 90, y: list.length === 1 ? 0 : -CFG.LANE_HALF + 40 + gap * i,
-        input: { dx: 0, dy: 0 }, stun: 0, slow: 0, kb: 0, finished: false, finishTime: null,
+        input: { dx: 0, dy: 0 }, shield: 0, shieldCd: 0, stun: 0, slow: 0, kb: 0, finished: false, finishTime: null,
       }));
       this.startAt = Date.now() + CFG.COUNTDOWN * 1000;
       this.lobby();
@@ -140,6 +148,8 @@
       for (const p of racing) {
         p.stun = Math.max(0, p.stun - dt);
         p.slow = Math.max(0, p.slow - dt);
+        p.shieldCd = Math.max(0, p.shieldCd - dt);
+        if (p.shield > 0 && (p.shield -= dt) <= 0) this.dropShield(p);
         if (p.kb > 0) {
           const step = Math.min(p.kb, 1500 * dt);
           p.x -= step; p.kb -= step;
@@ -181,6 +191,11 @@
           const dx = p.x - s.x, dy = p.y - s.y, rr = def.r + R;
           if (dx * dx + dy * dy > rr * rr) continue;
           s.hit.add(p.id);
+          if (p.shield > 0) {   // Janna shield eats the shot
+            this.dropShield(p);
+            this.broadcast('blocked', { id: p.id, kind: s.kind });
+            continue;
+          }
           if (def.effect === 'stun') p.stun = Math.max(p.stun, def.dur);
           else if (def.effect === 'slow') p.slow = Math.max(p.slow, def.dur);
           else p.kb = def.dist;
@@ -189,18 +204,25 @@
       }
       this.shots = this.shots.filter(s => s.x > -200);
 
+      if (++this.frame % 2) return this.checkEnd(elapsed); // snapshots at 15/s, simulation at 30/s
       this.broadcast('state', {
         t: elapsed,
         players: [...this.players.values()].map(p => ({
           id: p.id, x: Math.round(p.x), y: Math.round(p.y),
-          stun: p.stun > 0, slow: p.slow > 0, kb: p.kb > 0, finished: p.finished,
+          stun: p.stun > 0, slow: p.slow > 0, sh: p.shield > 0, cd: Math.ceil(p.shieldCd * 10) / 10, kb: p.kb > 0, finished: p.finished,
         })),
         shots: this.shots.map(s => ({ id: s.id, k: s.kind, x: Math.round(s.x), y: Math.round(s.y) })),
       });
 
+      this.checkEnd(elapsed);
+    }
+
+    checkEnd(elapsed) {
       const allDone = [...this.players.values()].every(p => p.finished || !p.connected);
       if (allDone || elapsed >= CFG.RACE_TIME) this.endRace();
     }
+
+    dropShield(p) { p.shield = 0; p.shieldCd = CFG.SHIELD_CD; }
 
     endRace() {
       clearInterval(this.timer);
